@@ -3,95 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR & URL Toolset</title>
+  <title>QR, URL, Password & Random Number Toolset</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    .wrapper {
-      display: flex;
-      gap: 20px;
-      width: 100%;
-      max-width: 1000px;
-    }
-    .container {
-      background: #fff;
-      padding: 20px 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 1.5rem;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 1rem;
-    }
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 4px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    button[type="submit"] {
-      background: #007bff;
-      color: #fff;
-    }
-    button[type="submit"]:hover {
-      background: #0056b3;
-    }
-    .clear-btn {
-      background: #6c757d;
-      color: #fff;
-    }
-    .clear-btn:hover {
-      background: #5a6268;
-    }
-    .qrcode, .result {
-      margin-top: 20px;
-      text-align: center;
-      word-break: break-all;
-    }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
+    .wrapper { display: flex; gap: 20px; width: 100%; max-width: 1200px; }
+    .container { background: #fff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; display: flex; flex-direction: column; }
+    h1 { text-align: center; margin-bottom: 20px; font-size: 1.5rem; }
+    h2 { margin-top: 30px; font-size: 1.25rem; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .checkbox-group label { font-weight: normal; }
+    .button-group { display: flex; gap: 10px; margin-top: 10px; }
+    button { flex: 1; padding: 10px; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; background: #007bff; color: #fff; }
+    button:hover { background: #0056b3; }
+    .clear-btn { background: #6c757d; }
+    .clear-btn:hover { background: #5a6268; }
+    .qrcode, .result { margin-top: 20px; text-align: center; word-break: break-all; }
+    #password-output input { margin-top: 10px; text-align: center; }
+    #copy-btn { margin-top: 10px; background: #28a745; }
+    #copy-btn:hover { background: #218838; }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <!-- vCard QR Code Generator -->
+    <!-- Left Panel: vCard -->
     <div class="container">
       <h1>vCard QR Code</h1>
       <form id="vcard-form">
         <div class="form-group"><label for="firstname">First Name</label><input type="text" id="firstname" placeholder="John" required></div>
         <div class="form-group"><label for="lastname">Last Name</label><input type="text" id="lastname" placeholder="Doe" required></div>
         <div class="form-group"><label for="org">Organization</label><input type="text" id="org" placeholder="Company Inc."></div>
+        <div class="form-group"><label for="title">Title</label><input type="text" id="title" placeholder="Software Engineer"></div>
         <div class="form-group"><label for="mobile">Mobile Phone</label><input type="tel" id="mobile" placeholder="+1 555-123-4567"></div>
         <div class="form-group"><label for="work">Work Phone</label><input type="tel" id="work" placeholder="+1 555-987-6543"></div>
         <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="john.doe@example.com"></div>
@@ -106,26 +50,62 @@
       </form>
       <div id="vcard-qrcode" class="qrcode"></div>
     </div>
-
-    <!-- URL Shortener & Website QR Generator -->
+    <!-- Right Panel: Utilities -->
     <div class="container">
-      <h1>URL Shortener & QR Code</h1>
-      <!-- URL Shortener -->
-      <form id="shortener-form">
-        <div class="form-group"><label for="long-url">Long URL</label><input type="url" id="long-url" placeholder="https://example.com/very/long/url" required></div>
-        <div class="button-group"><button type="submit">Shorten URL</button><button type="button" class="clear-btn" id="clear-shortener-btn">Clear</button></div>
+      <h1>Utilities</h1>
+      <h2>URL Shortener</h2>
+      <form id="shortener-form" class="form-group">
+        <label for="long-url">Long URL</label>
+        <input type="url" id="long-url" placeholder="https://example.com/..." required>
+        <div class="button-group">
+          <button type="submit">Shorten URL</button>
+          <button type="button" class="clear-btn" id="clear-shortener-btn">Clear</button>
+        </div>
       </form>
       <div id="shortener-result" class="result"></div>
-
-      <!-- Website QR Code Generator -->
-      <form id="url-form">
-        <div class="form-group"><label for="website-url">URL</label><input type="url" id="website-url" placeholder="https://example.com" required></div>
-        <div class="button-group"><button type="submit">Generate QR</button><button type="button" class="clear-btn" id="clear-url-btn">Clear</button></div>
+      <h2>Website QR Code</h2>
+      <form id="url-form" class="form-group">
+        <label for="website-url">URL</label>
+        <input type="url" id="website-url" placeholder="https://example.com" required>
+        <div class="button-group">
+          <button type="submit">Generate QR</button>
+          <button type="button" class="clear-btn" id="clear-url-btn">Clear</button>
+        </div>
       </form>
       <div id="url-qrcode" class="qrcode"></div>
+      <h2>Strong Password Generator</h2>
+      <div class="form-group">
+        <label for="length">Length</label>
+        <input type="number" id="length" min="4" max="128" value="16">
+      </div>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="lowercase" checked> Lowercase</label>
+        <label><input type="checkbox" id="uppercase" checked> Uppercase</label>
+        <label><input type="checkbox" id="numbers" checked> Numbers</label>
+        <label><input type="checkbox" id="symbols"> Symbols</label>
+      </div>
+      <div class="button-group">
+        <button id="generate-btn">Generate Password</button>
+        <button type="button" class="clear-btn" id="clear-password-btn">Clear</button>
+      </div>
+      <div id="password-output" class="form-group">
+        <input type="text" id="password" readonly placeholder="Your password appears here">
+        <button id="copy-btn" type="button">Copy</button>
+      </div>
+      <h2>Random Number Generator</h2>
+      <form id="random-form" class="form-group">
+        <label for="min">Min</label>
+        <input type="number" id="min" placeholder="0">
+        <label for="max">Max</label>
+        <input type="number" id="max" placeholder="100">
+        <div class="button-group">
+          <button type="button" id="rand-generate-btn">Generate Number</button>
+          <button type="button" class="clear-btn" id="rand-clear-btn">Clear</button>
+        </div>
+      </form>
+      <div id="random-result" class="result"></div>
     </div>
   </div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     // vCard generator
@@ -136,6 +116,7 @@
       const first = document.getElementById('firstname').value.trim();
       const last = document.getElementById('lastname').value.trim();
       const org = document.getElementById('org').value.trim();
+      const title = document.getElementById('title').value.trim();
       const mobile = document.getElementById('mobile').value.trim();
       const work = document.getElementById('work').value.trim();
       const email = document.getElementById('email').value.trim();
@@ -146,62 +127,46 @@
       const zip = document.getElementById('zip').value.trim();
       const country = document.getElementById('country').value.trim();
       const note = document.getElementById('note').value.trim();
-      const adr = ['', '', street, city, state, zip, country].join(';');
+      const adr = ['','',street,city,state,zip,country].join(';');
       const vCardLines = [
         'BEGIN:VCARD','VERSION:3.0',
         `N:${last};${first}`,
         `FN:${first} ${last}`,
-        org ? `ORG:${org}` : '',
-        mobile ? `TEL;TYPE=CELL:${mobile}` : '',
-        work ? `TEL;TYPE=WORK:${work}` : '',
-        email ? `EMAIL:${email}` : '',
-        siteUrl ? `URL:${siteUrl}` : '',
-        (street||city||state||zip||country) ? `ADR:${adr}` : '',
-        note ? `NOTE:${note}` : '',
+        org?`ORG:${org}`:'',
+        title?`TITLE:${title}`:'',
+        mobile?`TEL;TYPE=CELL:${mobile}`:'',
+        work?`TEL;TYPE=WORK:${work}`:'',
+        email?`EMAIL:${email}`:'',
+        siteUrl?`URL:${siteUrl}`:'',
+        (street||city||state||zip||country)?`ADR:${adr}`:'',
+        note?`NOTE:${note}`:'',
         'END:VCARD'
       ].filter(Boolean).join('\n');
-      vcardContainer.innerHTML = '';
-      new QRCode(vcardContainer, { text: vCardLines, width: 256, height: 256 });
+      vcardContainer.innerHTML=''; new QRCode(vcardContainer,{text:vCardLines,width:256,height:256});
     });
-    document.getElementById('clear-vcard-btn').addEventListener('click', function() {
-      vcardForm.reset(); vcardContainer.innerHTML = '';
-    });
-
+    document.getElementById('clear-vcard-btn').addEventListener('click', ()=>{vcardForm.reset();vcardContainer.innerHTML='';});
     // URL Shortener
-    const shortForm = document.getElementById('shortener-form');
-    const shortContainer = document.getElementById('shortener-result');
-    shortForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const longUrl = document.getElementById('long-url').value.trim();
-      shortContainer.textContent = 'Generating...';
-      try {
-        const res = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
-        const data = await res.json();
-        if (data.shorturl) {
-          shortContainer.innerHTML = `<a href="${data.shorturl}" target="_blank">${data.shorturl}</a>`;
-        } else {
-          shortContainer.textContent = 'Error: ' + (data.errormessage || 'Unable to shorten URL');
-        }
-      } catch (err) {
-        shortContainer.textContent = 'Network error. Try again.';
-      }
+    document.getElementById('shortener-form').addEventListener('submit', async function(e) {
+      e.preventDefault(); const longUrl=document.getElementById('long-url').value.trim();
+      const resDiv=document.getElementById('shortener-result');resDiv.textContent='Generating...';
+      try{const res=await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
+        const data=await res.json();resDiv.innerHTML=data.shorturl?`<a href="${data.shorturl}" target="_blank">${data.shorturl}</a>`:'Error';
+      }catch{resDiv.textContent='Network error';}
     });
-    document.getElementById('clear-shortener-btn').addEventListener('click', function() {
-      document.getElementById('shortener-form').reset(); shortContainer.innerHTML = '';
-    });
-
-    // Website QR generator
-    const urlForm = document.getElementById('url-form');
-    const urlContainer = document.getElementById('url-qrcode');
-    urlForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const websiteUrl = document.getElementById('website-url').value.trim();
-      urlContainer.innerHTML = '';
-      new QRCode(urlContainer, { text: websiteUrl, width: 256, height: 256 });
-    });
-    document.getElementById('clear-url-btn').addEventListener('click', function() {
-      document.getElementById('url-form').reset(); urlContainer.innerHTML = '';
-    });
+    document.getElementById('clear-shortener-btn').addEventListener('click',()=>{document.getElementById('shortener-form').reset();document.getElementById('shortener-result').innerHTML='';});
+    // Website QR Code
+    document.getElementById('url-form').addEventListener('submit',function(e){e.preventDefault();const url=document.getElementById('website-url').value.trim();const qrDiv=document.getElementById('url-qrcode');qrDiv.innerHTML='';new QRCode(qrDiv,{text:url,width:256,height:256});});
+    document.getElementById('clear-url-btn').addEventListener('click',()=>{document.getElementById('url-form').reset();document.getElementById('url-qrcode').innerHTML='';});
+    // Password Generator
+    function getRandomChar(chars){return chars[Math.floor(Math.random()*chars.length)];}
+    function generatePassword(len,lo,up,num,sym){const sets=[lo?'abcdefghijklmnopqrstuvwxyz':'',up?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':'',num?'0123456789':'',sym?'!@#$%^&*()_+-=[]{}|;:,.<>?':''].join('');if(!sets) return '';return Array.from({length:len},()=>getRandomChar(sets)).join('');}
+    document.getElementById('generate-btn').addEventListener('click',()=>{const len=+document.getElementById('length').value;const pwd=generatePassword(len,document.getElementById('lowercase').checked,document.getElementById('uppercase').checked,document.getElementById('numbers').checked,document.getElementById('symbols').checked);document.getElementById('password').value=pwd;});
+    document.getElementById('clear-password-btn').addEventListener('click',()=>{document.getElementById('password').value='';});
+    document.getElementById('copy-btn').addEventListener('click',function(){const p=document.getElementById('password');if(!p.value)return;p.select();document.execCommand('copy');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);});
+    // Random Number Generator
+    function getRandomInt(min,max){min=Math.ceil(min);max=Math.floor(max);return Math.floor(Math.random()*(max-min+1))+min;}
+    document.getElementById('rand-generate-btn').addEventListener('click',()=>{const min=Number(document.getElementById('min').value);const max=Number(document.getElementById('max').value);const out=document.getElementById('random-result');if(isNaN(min)||isNaN(max)||min>max){out.textContent='Invalid range';return;}out.textContent=getRandomInt(min,max);});
+    document.getElementById('rand-clear-btn').addEventListener('click',()=>{document.getElementById('random-form').reset();document.getElementById('random-result').textContent='';});
   </script>
 </body>
 </html>
