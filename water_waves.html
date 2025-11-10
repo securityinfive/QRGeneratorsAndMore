@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fluid Waves</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background: #000; overflow: hidden; }
+    canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  </style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<script>
+(function(){
+  const canvas = document.getElementById('gl');
+  const gl = canvas.getContext('webgl');
+  if (!gl) { alert('WebGL not supported'); return; }
+
+  // Vertex shader: fullscreen triangle
+  const vs = `
+  attribute vec2 a_pos;
+  void main(){
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+  }`;
+
+  // Fragment shader: water-like fluid using fbm noise, domain warp, and occasional big ripple
+  const fs = `
+  precision highp float;
+  uniform vec2 u_res;
+  uniform float u_time;
+  uniform vec2 u_rpos[3];
+  uniform float u_rage[3];
+  uniform float u_phase;
+
+  // iq hash and noise helpers
+  float hash(vec2 p){
+    p = fract(p*vec2(123.34, 456.21));
+    p += dot(p, p+45.32);
+    return fract(p.x*p.y);
+  }
+  float noise(vec2 p){
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f*f*(3.0-2.0*f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+  float fbm(vec2 p){
+    float v = 0.0;
+    float a = 0.5;
+    for(int i=0;i<6;i++){
+      v += a * noise(p);
+      p = mat2(1.6,1.2,-1.2,1.6) * p + 0.5;
+      a *= 0.5;
+    }
+    return v;
+  }
+
+  // Cosine palette
+  vec3 palette(float t)
+  {
+    vec3 a = vec3(0.5, 0.5, 0.55);
+    vec3 b = vec3(0.5, 0.5, 0.45);
+    vec3 c = vec3(1.0, 0.9, 0.8);
+    vec3 d = vec3(0.0, 0.33, 0.67);
+    return a + b*cos(6.28318*(c*t + d + u_phase));
+  }
+
+  // Ripple function
+  float ripple(vec2 p, vec2 center, float age)
+  {
+    // age in seconds, fade in and out
+    float life = 4.5;
+    float t = clamp(age / life, 0.0, 1.0);
+    float att = 1.0 - smoothstep(0.7, 1.0, t);
+    float d = distance(p, center);
+    float w = 18.0;     // frequency
+    float s = 3.6;      // speed
+    float amp = 0.12;   // amplitude
+    return sin(d*w - age*s) * amp * att / (1.0 + d*8.0);
+  }
+
+  void main(){
+    vec2 uv = (gl_FragCoord.xy / u_res.xy);
+    // center and aspect correct
+    vec2 p = (gl_FragCoord.xy - 0.5*u_res) / u_res.y;
+
+    // Base domain warp for fluid motion
+    float t = u_time*0.2;
+    vec2 flow = vec2(
+      fbm(p*2.0 + vec2(0.0, t*0.7)),
+      fbm(p*2.0 + vec2(t*0.6, 0.0))
+    );
+    vec2 q = p*1.8 + flow*0.6;
+
+    float h = fbm(q + vec2(t*0.18, -t*0.16));
+
+    // Add small ripples everywhere
+    h += 0.08*sin(10.0*q.x + t*1.3) * sin(10.0*q.y - t*1.1);
+
+    // Occasional big ripples from external uniforms
+    for (int i=0; i<3; i++) {
+      h += ripple(p, u_rpos[i], u_rage[i]);
+    }
+
+    // Derive normal from heightfield for gentle shading
+    float eps = 0.0025;
+    float hx = fbm(q + vec2(eps,0.0)) - fbm(q - vec2(eps,0.0));
+    float hy = fbm(q + vec2(0.0,eps)) - fbm(q - vec2(0.0,eps));
+    vec3 n = normalize(vec3(-hx, 1.0, -hy));
+
+    // Color from palette with rotating phase
+    float c = h;
+    vec3 col = palette(c*1.2 + t*0.05);
+
+    // Fake lighting
+    vec3 lightDir = normalize(vec3(0.4, 0.9, 0.2));
+    float diff = 0.4 + 0.6*max(0.0, dot(n, lightDir));
+    col *= diff;
+
+    // Subtle vignetting
+    float vig = 1.0 - smoothstep(0.8, 1.35, length(p));
+    col *= vig;
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+  `;
+
+  function compile(type, source){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      console.error(gl.getShaderInfoLog(s));
+      throw new Error('Shader compile failed');
+    }
+    return s;
+  }
+  function program(vsSrc, fsSrc){
+    const p = gl.createProgram();
+    const sv = compile(gl.VERTEX_SHADER, vsSrc);
+    const sf = compile(gl.FRAGMENT_SHADER, fsSrc);
+    gl.attachShader(p, sv); gl.attachShader(p, sf);
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
+      console.error(gl.getProgramInfoLog(p));
+      throw new Error('Program link failed');
+    }
+    return p;
+  }
+
+  const prog = program(vs, fs);
+  gl.useProgram(prog);
+
+  // Fullscreen triangle
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  const verts = new Float32Array([
+    -1,-1, 3,-1, -1,3
+  ]);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const u_res = gl.getUniformLocation(prog, 'u_res');
+  const u_time = gl.getUniformLocation(prog, 'u_time');
+  const u_rpos = gl.getUniformLocation(prog, 'u_rpos[0]');
+  const u_rage = gl.getUniformLocation(prog, 'u_rage[0]');
+  const u_phase = gl.getUniformLocation(prog, 'u_phase');
+
+  function resize(){
+    const dpr = Math.max(1, window.devicePixelRatio||1);
+    const w = Math.floor(innerWidth * dpr);
+    const h = Math.floor(innerHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h){
+      canvas.width = w; canvas.height = h;
+    }
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(u_res, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Ripple state
+  const ripples = [
+    {pos:[0.0,0.0], age: 1000},
+    {pos:[0.0,0.0], age: 1000},
+    {pos:[0.0,0.0], age: 1000}
+  ];
+  let phase = 0;
+
+  function spawnRipple(big){
+    // centered around screen with some randomness
+    const x = (Math.random()-0.5) * 1.2; // in NDC-ish space relative to height
+    const y = (Math.random()-0.5) * 1.2;
+    // put into [-aspect..aspect] space: we used p = (frag - 0.5*res)/res.y
+    ripples.unshift({pos:[x,y], age: 0});
+    ripples.pop();
+    if(big){
+      // lower frequency ripple by briefly altering shader parameters via phase
+      phase += 0.3; // color cycle bump to accent the event
+    }
+  }
+
+  // Timers: gentle random ripples plus occasional big one
+  setInterval(()=>spawnRipple(false), 1200 + Math.random()*800);
+  setInterval(()=>spawnRipple(true), 7000 + Math.random()*5000);
+
+  let start = performance.now();
+  function frame(now){
+    const t = (now - start) * 0.001; // seconds
+    gl.uniform1f(u_time, t);
+    gl.uniform1f(u_phase, phase);
+
+    // Update ripple ages
+    for (let i=0;i<ripples.length;i++) ripples[i].age += 1/60;
+
+    // Upload ripple uniforms
+    const rpos = new Float32Array(6); // 3 vec2
+    const rage = new Float32Array(3);
+    for (let i=0;i<3;i++){
+      rpos[i*2+0] = ripples[i].pos[0];
+      rpos[i*2+1] = ripples[i].pos[1];
+      rage[i] = ripples[i].age;
+    }
+    gl.uniform2fv(u_rpos, rpos);
+    gl.uniform1fv(u_rage, rage);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

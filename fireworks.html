@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panning Firework Cannon</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background:#000; overflow:hidden; }
+    canvas { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
+  </style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<script>
+(function(){
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d', { alpha:false });
+
+  let W=0,H=0,dpr=Math.max(1, window.devicePixelRatio||1);
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.floor(W*dpr);
+    canvas.height = Math.floor(H*dpr);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    // black clear
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // Cannon panning left to right
+  let cannonX = W*0.5; // start center
+  const cannonY = () => H - 30;
+  let panDir = 1;
+  let panSpeed = 90; // px per second
+  const panMargin = 80; // do not go to edges
+
+  // Launch scheduling
+  let nextLaunch = 0; // time in ms
+
+  // Entities
+  const rockets = [];
+  const sparks = [];
+
+  const GRAV = 200; // px/s^2 downward
+  const AIR = 0.997; // air drag per frame for sparks
+  const ROCKET_AIR = 0.999; // for rockets
+
+  function launchRocket(){
+    // random height 0.5..0.9 of H
+    const targetH = H*(0.1 + Math.random()*0.4);
+    // compute initial vy to reach that height roughly
+    const dy = (H - 30) - targetH;
+    const vy0 = -Math.sqrt(2*GRAV*dy) * (0.95 + Math.random()*0.1);
+    // slight lateral variance
+    const vx0 = (Math.random()*2-1) * 40;
+    rockets.push({
+      x: cannonX, y: cannonY(), vx: vx0, vy: vy0,
+      smoke: 0, exploded: false,
+      hue: Math.random()*360
+    });
+  }
+
+  function explode(x,y,baseHue){
+    const count = 260 + Math.floor(Math.random()*140); // hundreds
+    const speedMin = 60, speedMax = 320;
+    for (let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = speedMin + Math.random()*(speedMax-speedMin);
+      const vx = Math.cos(a)*sp;
+      const vy = Math.sin(a)*sp;
+      const life = 1.8 + Math.random()*1.2;
+      // gradient of colors around hue with variation
+      const hue = (baseHue + (i/count)*120 + Math.random()*30) % 360;
+      sparks.push({ x, y, vx, vy, life, ttl: life, size: 1.4 + Math.random()*2.0, hue });
+    }
+  }
+
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.033, (now - last)/1000); // seconds
+    last = now;
+
+    // Fade for trails
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0,0,W,H);
+
+    // Pan cannon
+    cannonX += panDir * panSpeed * dt;
+    if (cannonX > W - panMargin) { cannonX = W - panMargin; panDir = -1; }
+    if (cannonX < panMargin) { cannonX = panMargin; panDir = 1; }
+
+    // Launch timing
+    if (now >= nextLaunch){
+      launchRocket();
+      nextLaunch = now + 500 + Math.random()*700; // fire every 0.5..1.2s
+    }
+
+    // Update and draw rockets
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.vy += GRAV * dt;
+      r.vx *= ROCKET_AIR;
+      r.vy *= ROCKET_AIR;
+      r.x += r.vx * dt;
+      r.y += r.vy * dt;
+
+      // smoke trail points
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(r.x, r.y, 2, 2);
+
+      // Explode at apex or when upward speed slows
+      if (!r.exploded && r.vy > -30){
+        r.exploded = true;
+        explode(r.x, r.y, r.hue);
+        rockets.splice(i,1);
+      }
+
+      // safety
+      if (r.y < -50) { rockets.splice(i,1); }
+    }
+
+    // Update and draw sparks
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.ttl -= dt;
+      if (p.ttl <= 0) { sparks.splice(i,1); continue; }
+      p.vy += GRAV * 0.8 * dt;
+      p.vx *= AIR; p.vy *= AIR;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      const a = Math.max(0, p.ttl / p.life);
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${a})`;
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Draw the cannon
+    drawCannon();
+
+    requestAnimationFrame(frame);
+  }
+
+  function drawCannon(){
+    const y = cannonY();
+    const x = cannonX;
+    // base
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#111';
+    ctx.fillRect(x-16, y+6, 32, 10);
+    // barrel pointing up
+    ctx.fillStyle = '#444';
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-Math.PI/2.1); // slight tilt
+    ctx.fillRect(-5, -28, 10, 36);
+    ctx.restore();
+
+    // ground line
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y+16);
+    ctx.lineTo(W, y+16);
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
